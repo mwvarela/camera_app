@@ -21,6 +21,9 @@ class _FlutterCameraPreviewState extends State<FlutterCameraPreview>
   Future<void>? _initializeControllerFuture;
   late AnimationController _flashModeControlRowAnimationController;
   late Animation<double> _flashModeControlRowAnimation;
+  late AnimationController _zoomModeControlRowAnimationController;
+  late Animation<double> _zoomModeControlRowAnimation;
+  double _zoom = 0.0;
 
   @override
   void initState() {
@@ -37,9 +40,7 @@ class _FlutterCameraPreviewState extends State<FlutterCameraPreview>
       );
       _initializeControllerFuture = _controller.initialize();
 
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     });
 
     _flashModeControlRowAnimationController = AnimationController(
@@ -48,6 +49,15 @@ class _FlutterCameraPreviewState extends State<FlutterCameraPreview>
     );
     _flashModeControlRowAnimation = CurvedAnimation(
       parent: _flashModeControlRowAnimationController,
+      curve: Curves.easeInCubic,
+    );
+
+    _zoomModeControlRowAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _zoomModeControlRowAnimation = CurvedAnimation(
+      parent: _zoomModeControlRowAnimationController,
       curve: Curves.easeInCubic,
     );
   }
@@ -88,10 +98,16 @@ class _FlutterCameraPreviewState extends State<FlutterCameraPreview>
                             widget.onFile!(file);
                           },
                         ),
+                        IconButton(
+                          icon: const Icon(Icons.zoom_in),
+                          color: Colors.blue,
+                          onPressed: onZoomModeButtonPressed,
+                        ),
                       ],
                     ),
                   ),
                   _flashModeControlRowWidget(),
+                  _zoomModeControlRowWidget(),
                 ],
               );
             } else {
@@ -145,11 +161,44 @@ class _FlutterCameraPreviewState extends State<FlutterCameraPreview>
     );
   }
 
-  void onSetExposureModeButtonPressed(ExposureMode mode) {
-    setExposureMode(mode).then((_) {
-      if (mounted) setState(() {});
-      showInSnackBar('Exposure mode set to ${mode.toString().split('.').last}');
-    });
+  Widget _zoomModeControlRowWidget() {
+    return SizeTransition(
+      sizeFactor: _zoomModeControlRowAnimation,
+      child: ClipRect(
+        child: Container(
+          color: Colors.grey.shade50,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      const Icon(Icons.zoom_out),
+                      Slider(
+                        activeColor: Colors.red,
+                        value: _zoom,
+                        onChanged: (value) {
+                          value = value * 10;
+                          if (value <= 8.0 && value >= 1.0) {
+                            _controller.setZoomLevel(value);
+                            setState(() => _zoom = value / 10);
+                          }
+                        },
+                      ),
+                      const Icon(Icons.zoom_in),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void onFlashModeButtonPressed() {
@@ -157,6 +206,16 @@ class _FlutterCameraPreviewState extends State<FlutterCameraPreview>
       _flashModeControlRowAnimationController.reverse();
     } else {
       _flashModeControlRowAnimationController.forward();
+      _zoomModeControlRowAnimationController.reverse();
+    }
+  }
+
+  void onZoomModeButtonPressed() {
+    if (_zoomModeControlRowAnimationController.value == 1) {
+      _zoomModeControlRowAnimationController.reverse();
+    } else {
+      _zoomModeControlRowAnimationController.forward();
+      _flashModeControlRowAnimationController.reverse();
     }
   }
 
@@ -169,15 +228,6 @@ class _FlutterCameraPreviewState extends State<FlutterCameraPreview>
   Future<void> setFlashMode(FlashMode mode) async {
     try {
       await _controller.setFlashMode(mode);
-    } on CameraException catch (e) {
-      _showCameraException(e);
-      rethrow;
-    }
-  }
-
-  Future<void> setExposureMode(ExposureMode mode) async {
-    try {
-      await _controller.setExposureMode(mode);
     } on CameraException catch (e) {
       _showCameraException(e);
       rethrow;
