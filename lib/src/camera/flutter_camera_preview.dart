@@ -73,6 +73,7 @@ class _FlutterCameraPreviewState extends State<FlutterCameraPreview>
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
+        appBar: AppBar(),
         key: _scaffoldKey,
         body: FutureBuilder<void>(
           future: _initializeControllerFuture,
